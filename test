@@ -21,11 +21,65 @@ def init(sess_args: dict, cat_name: str) -> (Session, Category):
     return d, cat
 
 
-def search_res(cat: Category, res: str):
+def search_res(cat: Category, res: str, wattsok: str, resistance: str):
+    # compare prices at 1
+    qty = 1
+
+    # temperature range of -40 to 85
+    # TODO: if digikey adds a part with a category not here but in the
+    # right operating range, we will ignore it with this code.
     prods = tuple(cat.search({
-        res: {'500 Ohms'}
+        res: resistance,
+        'Part Status': {'Active'},
+        'Package / Case' : {'0603 (1608 Metric)'},
+        'Packaging' : {'Bulk', 'Cut Tape (CT)', 'Strip', 'Tray', 'Tube', '-'},
+        'Power (Watts)' : wattsok,
+        'Quantity': qty,
+        'Operating Temperature': { "-80°C ~ 280°C", "-65°C ~ 125°C",
+            "-65°C ~ 150°C", "-65°C ~ 155°C", "-65°C ~ 170°C", "-65°C ~ 175°C", "-65°C ~ 200°C", "-65°C ~ 275°C", "-55°C ~ 125°C",
+            "-55°C ~ 150°C", "-55°C ~ 155°C", "-55°C ~ 160°C", "-55°C ~ 170°C", "-55°C ~ 175°C", "-55°C ~ 180°C", "-55°C ~ 200°C",
+            "-55°C ~ 215°C", "-55°C ~ 220°C", "-55°C ~ 225°C", "-55°C ~ 230°C", "-55°C ~ 250°C", "-55°C ~ 275°C", "-55°C ~ 300°C",
+            "-50°C ~ 200°C", "-40°C ~ 125°C", "-40°C ~ 130°C", "-40°C ~ 155°C", "-40°C ~ 175°C"},
     }))
-    print('\n'.join(sorted(str(p) for p in prods)))
+
+    
+    cheapest = prods[0]
+
+    for p in prods:
+        if p.attrs_by_name['unitPrice'].value < cheapest.attrs_by_name['unitPrice'].value:
+            cheapest = p
+
+    print(cheapest)
+    print(cheapest.attrs_by_name['unitPrice'].value)
+    print(cheapest.dk_part_no)
+
+def okPower(power):
+    digKeyOptions = { 0.01: "0.01W", 0.0125: "0.0125W", 0.02: "0.02W",
+            0.03: "0.03W, 1/32W", 0.0375: "0.0375W", 0.04: "0.04W",
+            0.05: "0.05W, 1/20W", 0.06: "0.06W", 0.063: "0.063W, 1/16W",
+            0.07: "0.07W", 0.075: "0.075W", 0.1: "0.1W, 1/10W", 
+            0.12: "0.12W", 0.125: "0.125W, 1/8W", 0.135: "0.135W", 0.15:
+            "0.15W", 0.16: "0.16W", 0.167: "0.167W, 1/6W", 0.2: "0.2W, 1/5W", 
+            0.225: "0.225W", 0.245: "0.245W", 0.25: "0.25W, 1/4W", 0.3: "0.3W", 
+            0.32: "0.32W", 0.333: "0.333W, 1/3W",
+            0.35: "0.35W", 0.375: "0.375W, 3/8W", 0.4: "0.4W", 0.4:
+            "0.4W, 2/5W", 0.5: "0.5W, 1/2W", 0.6: "0.6W", 0.63: "0.63W, 5/8W", 
+            0.667: "0.667W, 2/3W", 0.7: "0.7W", 
+            0.75: "0.75W, 3/4W", 0.8: "0.8W", 1: "1W", 1.2: "1.2W", 1.25: "1.25W",
+            1.33: "1.33W", 1.4: "1.4W", 1.5: "1.5W", 2: "2W", 2.4:
+            "2.4W", 2.5: "2.5W", 3: "3W", 3.5: "3.5W", 4: "4W", 5: "5W",
+            6: "6W", 7: "7W", 8: "8W", 9: "9W", 10: "10W", 12: "12W",
+            15: "15W", 16: "16W", 20: "20W", 25: "25W", 30: "30W", 35:
+            "35W", 36: "36W", 40: "40W", 45: "45W", 50: "50W", 100:
+            "100W", 125: "125W", 150: "150W", 200: "200W", 250: "250W"}
+
+    okOptions = []
+
+    for item in digKeyOptions.items():
+        if power <= item[0]:
+            okOptions.append(item[1])
+
+    return set(okOptions)
 
 
 def italian_res():
@@ -37,10 +91,10 @@ def italian_res():
     sess.serialize()
 
 
-def english_res():
+def english_res(wattmin, resistance):
     sess_en_ca = {'country': 'CA'}
-    sess, cat = init(sess_en_ca, 'Resistors/Through Hole Resistors')
-    search_res(cat, 'Resistance')
+    sess, cat = init(sess_en_ca, 'Resistors/Chip Resistor - Surface Mount')
+    search_res(cat, 'Resistance', okPower(wattmin), resistance)
     sess.serialize()
 
 
@@ -120,4 +174,5 @@ def mcu():
     fig.savefig('output.png')
 
 
-mcu()
+english_res(0, {'1 kOhms'})
+
